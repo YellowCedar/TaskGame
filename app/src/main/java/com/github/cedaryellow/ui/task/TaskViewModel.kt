@@ -25,13 +25,17 @@ import com.github.cedaryellow.ui.task.TaskUiState.Error
 import com.github.cedaryellow.ui.task.TaskUiState.Loading
 import com.github.cedaryellow.ui.task.TaskUiState.Success
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import java.util.Calendar
 import javax.inject.Inject
 
 @HiltViewModel
@@ -40,11 +44,60 @@ class TaskViewModel @Inject constructor(
     private val userPointsRepository: UserPointsRepository
 ) : ViewModel() {
 
-    val uiState: StateFlow<TaskUiState> = taskRepository
-        .tasks
-        .map<List<Task>, TaskUiState>(::Success)
-        .catch { emit(Error(it)) }
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), Loading)
+    // 选中的日期，默认为今天
+    private val _selectedDate = MutableStateFlow(System.currentTimeMillis())
+    val selectedDate: StateFlow<Long> = _selectedDate
+    
+    // 是否显示所有任务，默认只显示选中日期的任务
+    private val _showAllTasks = MutableStateFlow(false)
+    val showAllTasks: StateFlow<Boolean> = _showAllTasks
+
+    // 根据选中的日期和显示模式来动态更新UI状态
+    val uiState: StateFlow<TaskUiState> = combine(
+        _selectedDate,
+        _showAllTasks
+    ) { date, showAll ->
+        Pair(date, showAll)
+    }.flatMapLatest { (date, showAll) ->
+        if (showAll) {
+            taskRepository.tasks
+        } else {
+            taskRepository.getTasksByDate(date)
+        }
+    }.map<List<Task>, TaskUiState>(::Success)
+     .catch { emit(Error(it)) }
+     .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), Loading)
+
+    // 设置是否显示所有任务
+    fun setShowAllTasks(showAll: Boolean) {
+        _showAllTasks.value = showAll
+    }
+    
+    // 设置选中日期
+    fun setSelectedDate(timestamp: Long) {
+        _selectedDate.value = timestamp
+    }
+    
+    // 将日期设置为今天
+    fun setToday() {
+        _selectedDate.value = System.currentTimeMillis()
+    }
+    
+    // 将日期设置为昨天
+    fun setYesterday() {
+        val calendar = Calendar.getInstance()
+        calendar.timeInMillis = _selectedDate.value
+        calendar.add(Calendar.DAY_OF_MONTH, -1)
+        _selectedDate.value = calendar.timeInMillis
+    }
+    
+    // 将日期设置为明天
+    fun setTomorrow() {
+        val calendar = Calendar.getInstance()
+        calendar.timeInMillis = _selectedDate.value
+        calendar.add(Calendar.DAY_OF_MONTH, 1)
+        _selectedDate.value = calendar.timeInMillis
+    }
 
     fun getTask(taskId: Int): StateFlow<TaskDetailsUiState> = taskRepository
         .getTask(taskId)

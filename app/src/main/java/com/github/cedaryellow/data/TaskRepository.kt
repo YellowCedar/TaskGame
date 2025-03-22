@@ -30,6 +30,8 @@ interface TaskRepository {
     
     fun getTask(taskId: Int): Flow<Task>
     
+    fun getTasksByDate(date: Long): Flow<List<Task>>
+    
     suspend fun addTask(name: String, maxPoints: Int, estimatedDurationMinutes: Int): Long
     
     suspend fun updateTask(task: Task)
@@ -50,6 +52,27 @@ class DefaultTaskRepository @Inject constructor(
     override val tasks: Flow<List<Task>> = taskDao.getTasks()
 
     override fun getTask(taskId: Int): Flow<Task> = taskDao.getTask(taskId)
+    
+    override fun getTasksByDate(date: Long): Flow<List<Task>> {
+        val calendar = java.util.Calendar.getInstance().apply {
+            timeInMillis = date
+            set(java.util.Calendar.HOUR_OF_DAY, 0)
+            set(java.util.Calendar.MINUTE, 0)
+            set(java.util.Calendar.SECOND, 0)
+            set(java.util.Calendar.MILLISECOND, 0)
+        }
+        
+        val startOfDay = calendar.timeInMillis
+        
+        calendar.apply {
+            add(java.util.Calendar.DAY_OF_MONTH, 1)
+            add(java.util.Calendar.MILLISECOND, -1)
+        }
+        
+        val endOfDay = calendar.timeInMillis
+        
+        return taskDao.getTasksByDate(startOfDay, endOfDay)
+    }
 
     override suspend fun addTask(
         name: String, 

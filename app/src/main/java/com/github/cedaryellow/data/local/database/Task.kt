@@ -60,6 +60,9 @@ interface TaskDao {
     @Query("SELECT * FROM task WHERE uid = :taskId")
     fun getTask(taskId: Int): Flow<Task>
     
+    @Query("SELECT * FROM task WHERE createdAt BETWEEN :startOfDay AND :endOfDay ORDER BY createdAt DESC")
+    fun getTasksByDate(startOfDay: Long, endOfDay: Long): Flow<List<Task>>
+    
     @Insert
     suspend fun insertTask(item: Task): Long
 
