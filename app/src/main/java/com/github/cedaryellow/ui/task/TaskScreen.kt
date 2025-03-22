@@ -181,7 +181,8 @@ fun TaskItem(
                 }
                 
                 Text(
-                    text = "${task.maxPoints} pts",
+                    //text = "${task.maxPoints} pts", todo use maxPoints
+                    text = "100 base pts",
                     style = MaterialTheme.typography.bodySmall
                 )
             }

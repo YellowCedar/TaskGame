@@ -25,11 +25,14 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Star
@@ -48,7 +51,6 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -73,6 +75,7 @@ fun TaskDetailsScreen(
 ) {
     val uiState by viewModel.getTask(taskId).collectAsStateWithLifecycle()
     var showCompletionDialog by remember { mutableStateOf(false) }
+    var showDeleteConfirmDialog by remember { mutableStateOf(false) }
     
     Scaffold(
         topBar = {
@@ -83,6 +86,14 @@ fun TaskDetailsScreen(
                         Icon(
                             imageVector = Icons.Default.ArrowBack,
                             contentDescription = "Back"
+                        )
+                    }
+                },
+                actions = {
+                    IconButton(onClick = { showDeleteConfirmDialog = true }) {
+                        Icon(
+                            imageVector = Icons.Default.Delete,
+                            contentDescription = "Delete Task"
                         )
                     }
                 }
@@ -132,7 +143,8 @@ fun TaskDetailsScreen(
                                 modifier = Modifier.padding(16.dp)
                             ) {
                                 InfoRow("Status", getStatusText(task.state))
-                                InfoRow("Points", "${task.maxPoints}")
+                                //InfoRow("Points", "${task.maxPoints}") todo add method to automate the acquisition of points
+                                InfoRow("totalElapsedTime", "${formatElapsedTime(task)}")
                                 InfoRow("Estimated Duration", "${task.estimatedDurationMinutes} minutes")
                                 
                                 if (task.state == TaskState.IN_PROGRESS || task.state == TaskState.PAUSED) {
@@ -229,6 +241,16 @@ fun TaskDetailsScreen(
                             }
                         )
                     }
+                    
+                    if (showDeleteConfirmDialog) {
+                        DeleteTaskConfirmationDialog(
+                            onDismiss = { showDeleteConfirmDialog = false },
+                            onConfirm = {
+                                viewModel.deleteTask(taskId)
+                                onNavigateBack()
+                            }
+                        )
+                    }
                 }
             }
         }
@@ -310,6 +332,46 @@ fun TaskCompletionDialog(
                 onClick = onDismiss
             ) {
                 Text("Cancel")
+            }
+        }
+    )
+}
+
+@Composable
+fun DeleteTaskConfirmationDialog(
+    onDismiss: () -> Unit,
+    onConfirm: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("删除任务") },
+        text = { Text("确定要删除这个任务吗？此操作无法撤销。") },
+        confirmButton = {
+            Button(
+                onClick = onConfirm,
+                colors = androidx.compose.material3.ButtonDefaults.buttonColors(
+                    containerColor = MaterialTheme.colorScheme.error
+                )
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Delete,
+                        contentDescription = null,
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text("删除")
+                }
+            }
+        },
+        dismissButton = {
+            Button(
+                onClick = onDismiss,
+                colors = androidx.compose.material3.ButtonDefaults.outlinedButtonColors()
+            ) {
+                Text("取消")
             }
         }
     )

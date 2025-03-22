@@ -16,12 +16,14 @@
 
 package com.github.cedaryellow.data
 
-import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.first
 import com.github.cedaryellow.data.local.database.Task
 import com.github.cedaryellow.data.local.database.TaskDao
 import com.github.cedaryellow.data.local.database.TaskState
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.first
 import javax.inject.Inject
+import kotlin.math.roundToInt
+import kotlin.math.sqrt
 
 interface TaskRepository {
     val tasks: Flow<List<Task>>
@@ -77,6 +79,9 @@ class DefaultTaskRepository @Inject constructor(
             startTime = System.currentTimeMillis()
         )
         taskDao.updateTask(updatedTask)
+//        val latestTask = taskDao.getTask(taskId).first()
+//        Log.d("DEBUG", "Latest Task State: ${latestTask.state}")
+//        Log.i("updateTask", updatedTask.toString())
     }
     
     override suspend fun pauseTask(taskId: Int) {
@@ -106,8 +111,10 @@ class DefaultTaskRepository @Inject constructor(
         }
         
         // Calculate points based on rating
-        val earnedPoints = (task.maxPoints * rating) / 5
-        
+        //todo rating should be modified
+//        val earnedPoints = (task.maxPoints * rating) / 5
+        //val earnedPoints = 100
+        val earnedPoints = calculatePoints(100, task.estimatedDurationMinutes, task.totalElapsedTime, rating)
         val updatedTask = task.copy(
             state = TaskState.COMPLETED,
             endTime = currentTime,
@@ -117,5 +124,28 @@ class DefaultTaskRepository @Inject constructor(
             earnedPoints = earnedPoints
         )
         taskDao.updateTask(updatedTask)
+    }
+
+    private fun calculatePoints(
+        basePoints: Int,      // 基础积分 B
+        idealDuration: Int,   // 理想时长 T_ideal（分钟）
+        actualDuration: Long,  // 实际耗时 T（分钟）
+        selfRating: Int       // 自我评价 S（1-5星）
+    ): Int {
+        require(selfRating in 1..5) { "自我评价必须是 1-5 星" }
+
+        // 1. 计算自我评价系数
+        val sCoeff = 0.6 + 0.08 * selfRating
+
+        // 2. 计算时长系数
+        val ratio = actualDuration.toDouble() / idealDuration
+        val tCoeff = when {
+            ratio < 0.5 -> 0.5
+            ratio > 2.0 -> 1.5
+            else -> sqrt(ratio)
+        }
+
+        // 3. 计算并四舍五入为整数
+        return (basePoints * sCoeff * tCoeff).roundToInt()
     }
 }

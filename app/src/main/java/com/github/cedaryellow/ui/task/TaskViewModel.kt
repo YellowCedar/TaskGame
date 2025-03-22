@@ -18,24 +18,26 @@ package com.github.cedaryellow.ui.task
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.github.cedaryellow.data.TaskRepository
+import com.github.cedaryellow.data.UserPointsRepository
+import com.github.cedaryellow.data.local.database.Task
+import com.github.cedaryellow.ui.task.TaskUiState.Error
+import com.github.cedaryellow.ui.task.TaskUiState.Loading
+import com.github.cedaryellow.ui.task.TaskUiState.Success
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
-import com.github.cedaryellow.data.TaskRepository
-import com.github.cedaryellow.data.local.database.Task
-import com.github.cedaryellow.data.local.database.TaskState
-import com.github.cedaryellow.ui.task.TaskUiState.Error
-import com.github.cedaryellow.ui.task.TaskUiState.Loading
-import com.github.cedaryellow.ui.task.TaskUiState.Success
 import javax.inject.Inject
 
 @HiltViewModel
 class TaskViewModel @Inject constructor(
-    private val taskRepository: TaskRepository
+    private val taskRepository: TaskRepository,
+    private val userPointsRepository: UserPointsRepository
 ) : ViewModel() {
 
     val uiState: StateFlow<TaskUiState> = taskRepository
@@ -83,6 +85,10 @@ class TaskViewModel @Inject constructor(
     fun completeTask(taskId: Int, rating: Int, reflection: String) {
         viewModelScope.launch {
             taskRepository.completeTask(taskId, rating, reflection)
+            
+            // Get the completed task to add its points
+            val task = taskRepository.getTask(taskId).first()
+            userPointsRepository.addPoints(task.earnedPoints)
         }
     }
 }

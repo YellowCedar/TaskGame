@@ -19,6 +19,7 @@ package com.github.cedaryellow.data.local.database
 import androidx.room.Dao
 import androidx.room.Entity
 import androidx.room.Insert
+import androidx.room.OnConflictStrategy
 import androidx.room.PrimaryKey
 import androidx.room.Query
 import androidx.room.Update
@@ -26,6 +27,8 @@ import kotlinx.coroutines.flow.Flow
 
 @Entity
 data class Task(
+    @PrimaryKey(autoGenerate = true)
+    val uid: Int = 0,
     val name: String,
     val maxPoints: Int = 0,
     val estimatedDurationMinutes: Int = 0,
@@ -39,8 +42,7 @@ data class Task(
     val earnedPoints: Int = 0,
     val createdAt: Long = System.currentTimeMillis()
 ) {
-    @PrimaryKey(autoGenerate = true)
-    var uid: Int = 0
+
 }
 
 enum class TaskState {
@@ -60,8 +62,8 @@ interface TaskDao {
     
     @Insert
     suspend fun insertTask(item: Task): Long
-    
-    @Update
+
+    @Update(onConflict = OnConflictStrategy.REPLACE)
     suspend fun updateTask(item: Task)
     
     @Query("DELETE FROM task WHERE uid = :taskId")

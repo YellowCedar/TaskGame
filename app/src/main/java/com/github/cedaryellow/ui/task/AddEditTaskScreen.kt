@@ -28,7 +28,6 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -96,26 +95,26 @@ fun AddEditTaskScreen(
                 modifier = Modifier.fillMaxWidth()
             )
             
-            // Max Points Field
-            OutlinedTextField(
-                value = maxPoints,
-                onValueChange = { 
-                    maxPoints = it
-                    try {
-                        val points = it.toInt()
-                        pointsError = points < 0
-                    } catch (e: NumberFormatException) {
-                        pointsError = true
-                    }
-                },
-                label = { Text("Max Points") },
-                isError = pointsError,
-                supportingText = { 
-                    if (pointsError) Text("Points must be a positive number") 
-                },
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                modifier = Modifier.fillMaxWidth()
-            )
+//            // Max Points Field todo relates to TaskDetailsScreen.kt
+//            OutlinedTextField(
+//                value = maxPoints,
+//                onValueChange = {
+//                    maxPoints = it
+//                    try {
+//                        val points = it.toInt()
+//                        pointsError = points < 0
+//                    } catch (e: NumberFormatException) {
+//                        pointsError = true
+//                    }
+//                },
+//                label = { Text("Max Points") },
+//                isError = pointsError,
+//                supportingText = {
+//                    if (pointsError) Text("Points must be a positive number")
+//                },
+//                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+//                modifier = Modifier.fillMaxWidth()
+//            )
             
             // Estimated Duration Field
             OutlinedTextField(

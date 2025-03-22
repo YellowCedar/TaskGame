@@ -79,6 +79,7 @@ android {
 
 dependencies {
 
+    implementation(libs.androidx.datastore.core.android)
     val composeBom = platform(libs.androidx.compose.bom)
     implementation(composeBom)
     androidTestImplementation(composeBom)
@@ -106,6 +107,9 @@ dependencies {
     implementation(libs.androidx.room.runtime)
     implementation(libs.androidx.room.ktx)
     ksp(libs.androidx.room.compiler)
+    
+    // DataStore
+    implementation("androidx.datastore:datastore-preferences:1.0.0")
 
     // Compose
     implementation(libs.androidx.compose.ui)
