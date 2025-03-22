@@ -18,6 +18,8 @@ package com.github.cedaryellow.data.local.di
 
 import android.content.Context
 import androidx.room.Room
+import androidx.room.migration.Migration
+import androidx.sqlite.db.SupportSQLiteDatabase
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -27,6 +29,23 @@ import com.github.cedaryellow.data.local.database.AppDatabase
 import com.github.cedaryellow.data.local.database.TaskDao
 import javax.inject.Singleton
 
+// Migration from version 1 to 2
+val MIGRATION_1_2 = object : Migration(1, 2) {
+    override fun migrate(database: SupportSQLiteDatabase) {
+        // Add new columns to Task table
+        database.execSQL("ALTER TABLE Task ADD COLUMN maxPoints INTEGER NOT NULL DEFAULT 0")
+        database.execSQL("ALTER TABLE Task ADD COLUMN estimatedDurationMinutes INTEGER NOT NULL DEFAULT 0")
+        database.execSQL("ALTER TABLE Task ADD COLUMN state TEXT NOT NULL DEFAULT 'NOT_STARTED'")
+        database.execSQL("ALTER TABLE Task ADD COLUMN startTime INTEGER DEFAULT NULL")
+        database.execSQL("ALTER TABLE Task ADD COLUMN endTime INTEGER DEFAULT NULL")
+        database.execSQL("ALTER TABLE Task ADD COLUMN pauseTime INTEGER DEFAULT NULL")
+        database.execSQL("ALTER TABLE Task ADD COLUMN totalElapsedTime INTEGER NOT NULL DEFAULT 0")
+        database.execSQL("ALTER TABLE Task ADD COLUMN rating INTEGER DEFAULT NULL")
+        database.execSQL("ALTER TABLE Task ADD COLUMN reflection TEXT NOT NULL DEFAULT ''")
+        database.execSQL("ALTER TABLE Task ADD COLUMN earnedPoints INTEGER NOT NULL DEFAULT 0")
+        database.execSQL("ALTER TABLE Task ADD COLUMN createdAt INTEGER NOT NULL DEFAULT 0")
+    }
+}
 
 @Module
 @InstallIn(SingletonComponent::class)
@@ -43,6 +62,9 @@ class DatabaseModule {
             appContext,
             AppDatabase::class.java,
             "Task"
-        ).build()
+        )
+        .addMigrations(MIGRATION_1_2)
+        .fallbackToDestructiveMigration() // Only for development
+        .build()
     }
 }

@@ -26,6 +26,8 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import com.github.cedaryellow.data.TaskRepository
+import com.github.cedaryellow.data.local.database.Task
+import com.github.cedaryellow.data.local.database.TaskState
 import com.github.cedaryellow.ui.task.TaskUiState.Error
 import com.github.cedaryellow.ui.task.TaskUiState.Loading
 import com.github.cedaryellow.ui.task.TaskUiState.Success
@@ -37,13 +39,50 @@ class TaskViewModel @Inject constructor(
 ) : ViewModel() {
 
     val uiState: StateFlow<TaskUiState> = taskRepository
-        .tasks.map<List<String>, TaskUiState>(::Success)
+        .tasks
+        .map<List<Task>, TaskUiState>(::Success)
         .catch { emit(Error(it)) }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), Loading)
 
-    fun addTask(name: String) {
+    fun getTask(taskId: Int): StateFlow<TaskDetailsUiState> = taskRepository
+        .getTask(taskId)
+        .map<Task, TaskDetailsUiState> { TaskDetailsUiState.Success(it) }
+        .catch { emit(TaskDetailsUiState.Error(it)) }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), TaskDetailsUiState.Loading)
+
+    fun addTask(name: String, maxPoints: Int, estimatedDurationMinutes: Int) {
         viewModelScope.launch {
-            taskRepository.add(name)
+            taskRepository.addTask(name, maxPoints, estimatedDurationMinutes)
+        }
+    }
+    
+    fun updateTask(task: Task) {
+        viewModelScope.launch {
+            taskRepository.updateTask(task)
+        }
+    }
+    
+    fun deleteTask(taskId: Int) {
+        viewModelScope.launch {
+            taskRepository.deleteTask(taskId)
+        }
+    }
+    
+    fun startTask(taskId: Int) {
+        viewModelScope.launch {
+            taskRepository.startTask(taskId)
+        }
+    }
+    
+    fun pauseTask(taskId: Int) {
+        viewModelScope.launch {
+            taskRepository.pauseTask(taskId)
+        }
+    }
+    
+    fun completeTask(taskId: Int, rating: Int, reflection: String) {
+        viewModelScope.launch {
+            taskRepository.completeTask(taskId, rating, reflection)
         }
     }
 }
@@ -51,5 +90,11 @@ class TaskViewModel @Inject constructor(
 sealed interface TaskUiState {
     object Loading : TaskUiState
     data class Error(val throwable: Throwable) : TaskUiState
-    data class Success(val data: List<String>) : TaskUiState
+    data class Success(val data: List<Task>) : TaskUiState
+}
+
+sealed interface TaskDetailsUiState {
+    object Loading : TaskDetailsUiState
+    data class Error(val throwable: Throwable) : TaskDetailsUiState
+    data class Success(val data: Task) : TaskDetailsUiState
 }

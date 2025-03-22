@@ -24,6 +24,8 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOf
 import com.github.cedaryellow.data.TaskRepository
 import com.github.cedaryellow.data.DefaultTaskRepository
+import com.github.cedaryellow.data.local.database.Task
+import com.github.cedaryellow.data.local.database.TaskState
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -38,12 +40,97 @@ interface DataModule {
     ): TaskRepository
 }
 
+/**
+ * Fake implementation of TaskRepository for testing purposes
+ */
 class FakeTaskRepository @Inject constructor() : TaskRepository {
-    override val tasks: Flow<List<String>> = flowOf(fakeTasks)
-
-    override suspend fun add(name: String) {
-        throw NotImplementedError()
+    private val fakeTasks = mutableListOf(
+        Task(name = "Task One", maxPoints = 10, estimatedDurationMinutes = 30),
+        Task(name = "Task Two", maxPoints = 20, estimatedDurationMinutes = 60),
+        Task(name = "Task Three", maxPoints = 30, estimatedDurationMinutes = 90)
+    ).apply {
+        // Assign IDs to simulate database behavior
+        forEachIndexed { index, task -> task.uid = index + 1 }
+    }
+    
+    override val tasks: Flow<List<Task>> = flowOf(fakeTasks)
+    
+    override fun getTask(taskId: Int): Flow<Task> {
+        val task = fakeTasks.find { it.uid == taskId } ?: Task(name = "Not Found")
+        return flowOf(task)
+    }
+    
+    override suspend fun addTask(name: String, maxPoints: Int, estimatedDurationMinutes: Int): Long {
+        val newId = (fakeTasks.maxOfOrNull { it.uid } ?: 0) + 1
+        val newTask = Task(name = name, maxPoints = maxPoints, estimatedDurationMinutes = estimatedDurationMinutes).apply {
+            uid = newId
+        }
+        fakeTasks.add(newTask)
+        return newId.toLong()
+    }
+    
+    override suspend fun updateTask(task: Task) {
+        val index = fakeTasks.indexOfFirst { it.uid == task.uid }
+        if (index != -1) {
+            fakeTasks[index] = task
+        }
+    }
+    
+    override suspend fun deleteTask(taskId: Int) {
+        fakeTasks.removeIf { it.uid == taskId }
+    }
+    
+    override suspend fun startTask(taskId: Int) {
+        val index = fakeTasks.indexOfFirst { it.uid == taskId }
+        if (index != -1) {
+            fakeTasks[index] = fakeTasks[index].copy(
+                state = TaskState.IN_PROGRESS,
+                startTime = System.currentTimeMillis()
+            )
+        }
+    }
+    
+    override suspend fun pauseTask(taskId: Int) {
+        val index = fakeTasks.indexOfFirst { it.uid == taskId }
+        if (index != -1) {
+            val task = fakeTasks[index]
+            val currentTime = System.currentTimeMillis()
+            val elapsedSinceStart = task.startTime?.let { currentTime - it } ?: 0
+            fakeTasks[index] = task.copy(
+                state = TaskState.PAUSED,
+                pauseTime = currentTime,
+                totalElapsedTime = task.totalElapsedTime + elapsedSinceStart
+            )
+        }
+    }
+    
+    override suspend fun completeTask(taskId: Int, rating: Int, reflection: String) {
+        val index = fakeTasks.indexOfFirst { it.uid == taskId }
+        if (index != -1) {
+            val task = fakeTasks[index]
+            val currentTime = System.currentTimeMillis()
+            
+            // Calculate elapsed time
+            val elapsedTime = when(task.state) {
+                TaskState.IN_PROGRESS -> {
+                    val elapsedSinceStart = task.startTime?.let { currentTime - it } ?: 0
+                    task.totalElapsedTime + elapsedSinceStart
+                }
+                TaskState.PAUSED -> task.totalElapsedTime
+                else -> task.totalElapsedTime
+            }
+            
+            // Calculate points based on rating
+            val earnedPoints = (task.maxPoints * rating) / 5
+            
+            fakeTasks[index] = task.copy(
+                state = TaskState.COMPLETED,
+                endTime = currentTime,
+                totalElapsedTime = elapsedTime,
+                rating = rating,
+                reflection = reflection,
+                earnedPoints = earnedPoints
+            )
+        }
     }
 }
-
-val fakeTasks = listOf("One", "Two", "Three")

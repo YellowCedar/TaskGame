@@ -16,4 +16,26 @@
 
 <resources>
     <string name="app_name">TaskGame</string>
+    
+    <!-- Navigation -->
+    <string name="nav_tasks">Tasks</string>
+    <string name="nav_store">Store</string>
+    
+    <!-- Task Screen -->
+    <string name="add_task">Add Task</string>
+    <string name="task_details">Task Details</string>
+    <string name="start_task">Start Task</string>
+    <string name="pause_task">Pause</string>
+    <string name="resume_task">Resume</string>
+    <string name="complete_task">Complete</string>
+    
+    <!-- Task Form -->
+    <string name="task_name">Task Name</string>
+    <string name="max_points">Max Points</string>
+    <string name="estimated_duration">Estimated Duration (minutes)</string>
+    <string name="save">Save</string>
+    
+    <!-- Task Completion -->
+    <string name="rate_performance">How would you rate your performance?</string>
+    <string name="reflection">Reflection (optional)</string>
 </resources>

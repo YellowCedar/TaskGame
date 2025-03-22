@@ -21,21 +21,49 @@ import androidx.room.Entity
 import androidx.room.Insert
 import androidx.room.PrimaryKey
 import androidx.room.Query
+import androidx.room.Update
 import kotlinx.coroutines.flow.Flow
 
 @Entity
 data class Task(
-    val name: String
+    val name: String,
+    val maxPoints: Int = 0,
+    val estimatedDurationMinutes: Int = 0,
+    val state: TaskState = TaskState.NOT_STARTED,
+    val startTime: Long? = null,
+    val endTime: Long? = null,
+    val pauseTime: Long? = null,
+    val totalElapsedTime: Long = 0, // In milliseconds
+    val rating: Int? = null, // 1-5 stars
+    val reflection: String = "",
+    val earnedPoints: Int = 0,
+    val createdAt: Long = System.currentTimeMillis()
 ) {
     @PrimaryKey(autoGenerate = true)
     var uid: Int = 0
 }
 
+enum class TaskState {
+    NOT_STARTED,
+    IN_PROGRESS,
+    PAUSED,
+    COMPLETED
+}
+
 @Dao
 interface TaskDao {
-    @Query("SELECT * FROM task ORDER BY uid DESC LIMIT 10")
+    @Query("SELECT * FROM task ORDER BY createdAt DESC")
     fun getTasks(): Flow<List<Task>>
-
+    
+    @Query("SELECT * FROM task WHERE uid = :taskId")
+    fun getTask(taskId: Int): Flow<Task>
+    
     @Insert
-    suspend fun insertTask(item: Task)
+    suspend fun insertTask(item: Task): Long
+    
+    @Update
+    suspend fun updateTask(item: Task)
+    
+    @Query("DELETE FROM task WHERE uid = :taskId")
+    suspend fun deleteTask(taskId: Int)
 }
