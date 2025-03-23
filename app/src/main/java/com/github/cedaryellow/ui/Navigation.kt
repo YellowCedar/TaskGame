@@ -20,6 +20,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Store
+import androidx.compose.material.icons.filled.Tag
 import androidx.compose.material3.Icon
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
@@ -38,6 +39,8 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.github.cedaryellow.ui.store.StoreScreen
+import com.github.cedaryellow.ui.tag.TagDetailsScreen
+import com.github.cedaryellow.ui.tag.TagLibraryScreen
 import com.github.cedaryellow.ui.task.AddEditTaskScreen
 import com.github.cedaryellow.ui.task.TaskDetailsScreen
 import com.github.cedaryellow.ui.task.TaskScreen
@@ -53,6 +56,11 @@ sealed class Screen(val route: String, val icon: @Composable () -> Unit, val lab
         route = "store",
         icon = { Icon(Icons.Filled.Store, contentDescription = null) },
         label = { Text("Store") }
+    )
+    object Tags : Screen(
+        route = "tags",
+        icon = { Icon(Icons.Filled.Tag, contentDescription = null) },
+        label = { Text("Tags") }
     )
 }
 
@@ -76,6 +84,11 @@ fun MainNavigation() {
             }
             composable(Screen.Store.route) { 
                 StoreScreen() 
+            }
+            composable(Screen.Tags.route) {
+                TagLibraryScreen(
+                    onTagClick = { tagId -> navController.navigate("tag_details/$tagId") }
+                )
             }
             composable("add_task") {
                 AddEditTaskScreen(
@@ -103,13 +116,24 @@ fun MainNavigation() {
                     onNavigateBack = { navController.popBackStack() }
                 )
             }
+            composable(
+                route = "tag_details/{tagId}",
+                arguments = listOf(navArgument("tagId") { type = NavType.IntType })
+            ) { backStackEntry ->
+                val tagId = backStackEntry.arguments?.getInt("tagId") ?: return@composable
+                TagDetailsScreen(
+                    tagId = tagId,
+                    onNavigateBack = { navController.popBackStack() },
+                    onTaskClick = { taskId -> navController.navigate("task_details/$taskId") }
+                )
+            }
         }
     }
 }
 
 @Composable
 fun BottomNavBar(navController: NavHostController) {
-    val items = listOf(Screen.Tasks, Screen.Store)
+    val items = listOf(Screen.Tasks, Screen.Tags, Screen.Store)
     NavigationBar {
         val navBackStackEntry by navController.currentBackStackEntryAsState()
         val currentDestination = navBackStackEntry?.destination
