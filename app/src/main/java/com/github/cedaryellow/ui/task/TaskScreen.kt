@@ -92,6 +92,9 @@ fun TaskScreen(
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val selectedDate by viewModel.selectedDate.collectAsStateWithLifecycle()
     val showAllTasks by viewModel.showAllTasks.collectAsStateWithLifecycle()
+    val selectedTagId by viewModel.selectedTagId.collectAsStateWithLifecycle()
+    val selectedTag by viewModel.selectedTag.collectAsStateWithLifecycle()
+    val allTags by viewModel.allTags.collectAsStateWithLifecycle()
     var showDatePicker by remember { mutableStateOf(false) }
     
     Scaffold(
@@ -115,6 +118,33 @@ fun TaskScreen(
                 onToday = { viewModel.setToday() },
                 modifier = Modifier.fillMaxWidth()
             )
+            
+            // 标签筛选栏
+            TagFilterBar(
+                tags = allTags,
+                selectedTagId = selectedTagId,
+                onTagSelected = { tagId ->
+                    tagId?.let { viewModel.setTagFilter(it) } ?: viewModel.clearTagFilter()
+                },
+                modifier = Modifier.fillMaxWidth()
+            )
+            
+            // 显示当前筛选状态
+            if (selectedTag != null) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "当前筛选: ${selectedTag?.name ?: ""}",
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = FontWeight.Medium,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                }
+            }
             
             // 任务列表
             when (uiState) {
@@ -157,16 +187,12 @@ fun TaskScreen(
                     }
                 },
                 dismissButton = {
-                    TextButton(
-                        onClick = { showDatePicker = false }
-                    ) {
+                    TextButton(onClick = { showDatePicker = false }) {
                         Text("取消")
                     }
                 }
             ) {
-                DatePicker(
-                    state = datePickerState
-                )
+                DatePicker(state = datePickerState)
             }
         }
     }
@@ -428,27 +454,73 @@ fun TaskListItem(
                 ) {
                     Text(
                         text = when(task.state) {
-                            TaskState.NOT_STARTED -> "Not Started"
-                            TaskState.IN_PROGRESS -> "In Progress"
-                            TaskState.PAUSED -> "Paused"
-                            TaskState.COMPLETED -> "Completed"
+                            TaskState.NOT_STARTED -> "未开始"
+                            TaskState.IN_PROGRESS -> "进行中"
+                            TaskState.PAUSED -> "已暂停"
+                            TaskState.COMPLETED -> "已完成"
                         },
-                        style = MaterialTheme.typography.bodySmall,
-                        color = statusColor
+                        color = statusColor,
+                        style = MaterialTheme.typography.bodySmall
+                    )
+                }
+                
+                if (task.maxPoints > 0) {
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = "${task.earnedPoints}/${task.maxPoints} 点",
+                        style = MaterialTheme.typography.bodySmall
                     )
                 }
             }
             
-            // Show tags if available
+            // Display tags if any
             if (tags.isNotEmpty()) {
                 Spacer(modifier = Modifier.height(8.dp))
-                TagList(
-                    tags = tags,
-                    onTagClick = { /* Can't navigate from here, just show */ },
-                    maxDisplayedTags = 3,
-                    showAll = false
-                )
+                androidx.compose.foundation.layout.FlowRow(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    tags.forEach { tag ->
+                        TaskTagChip(
+                            tag = tag,
+                            onClick = { viewModel.setTagFilter(tag.tagId) }
+                        )
+                    }
+                }
             }
+        }
+    }
+}
+
+@Composable
+fun TaskTagChip(
+    tag: Tag,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Box(
+        modifier = modifier
+            .clip(RoundedCornerShape(12.dp))
+            .background(MaterialTheme.colorScheme.surfaceVariant)
+            .clickable { onClick() }
+            .padding(horizontal = 8.dp, vertical = 4.dp)
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(8.dp)
+                    .clip(androidx.compose.foundation.shape.CircleShape)
+                    .background(androidx.compose.ui.graphics.Color(android.graphics.Color.parseColor(tag.color)))
+            )
+            Spacer(modifier = Modifier.width(4.dp))
+            Text(
+                text = tag.name,
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
         }
     }
 }
@@ -467,4 +539,115 @@ fun TaskStatusIndicator(task: Task) {
         color = color,
         style = MaterialTheme.typography.bodySmall
     )
+}
+
+// 在日期选择栏后添加标签筛选栏
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+fun TagFilterBar(
+    tags: List<Tag>,
+    selectedTagId: Int?,
+    onTagSelected: (Int?) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Card(
+        modifier = modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+        shape = RoundedCornerShape(8.dp)
+    ) {
+        Column(modifier = Modifier.padding(8.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "按标签筛选",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold
+                )
+                
+                if (selectedTagId != null) {
+                    TextButton(onClick = { onTagSelected(null) }) {
+                        Text("清除筛选")
+                    }
+                }
+            }
+            
+            Spacer(modifier = Modifier.height(8.dp))
+            
+            if (tags.isEmpty()) {
+                Text(
+                    text = "没有可用的标签",
+                    style = MaterialTheme.typography.bodyMedium,
+                    modifier = Modifier.padding(vertical = 8.dp)
+                )
+            } else {
+                androidx.compose.foundation.layout.FlowRow(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    tags.forEach { tag ->
+                        val isSelected = selectedTagId == tag.tagId
+                        TagChip(
+                            tag = tag,
+                            isSelected = isSelected,
+                            onClick = {
+                                if (isSelected) {
+                                    onTagSelected(null)
+                                } else {
+                                    onTagSelected(tag.tagId)
+                                }
+                            }
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun TagChip(
+    tag: Tag,
+    isSelected: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val backgroundColor = if (isSelected) {
+        MaterialTheme.colorScheme.primaryContainer
+    } else {
+        MaterialTheme.colorScheme.surface
+    }
+    
+    val textColor = if (isSelected) {
+        MaterialTheme.colorScheme.onPrimaryContainer
+    } else {
+        MaterialTheme.colorScheme.onSurface
+    }
+    
+    Box(
+        modifier = modifier
+            .clip(RoundedCornerShape(16.dp))
+            .background(backgroundColor)
+            .clickable { onClick() }
+            .padding(horizontal = 12.dp, vertical = 6.dp)
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(12.dp)
+                    .clip(androidx.compose.foundation.shape.CircleShape)
+                    .background(androidx.compose.ui.graphics.Color(android.graphics.Color.parseColor(tag.color)))
+            )
+            Spacer(modifier = Modifier.width(6.dp))
+            Text(
+                text = tag.name,
+                color = textColor,
+                style = MaterialTheme.typography.bodyMedium
+            )
+        }
+    }
 }

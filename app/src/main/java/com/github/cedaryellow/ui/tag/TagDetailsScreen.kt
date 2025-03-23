@@ -59,8 +59,10 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.navigation.NavHostController
 import com.github.cedaryellow.data.local.database.Task
 import com.github.cedaryellow.data.local.database.TaskState
+import com.github.cedaryellow.ui.task.TaskViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -68,8 +70,10 @@ fun TagDetailsScreen(
     tagId: Int,
     onNavigateBack: () -> Unit,
     onTaskClick: (Int) -> Unit,
-    viewModel: TagViewModel = hiltViewModel()
+    viewModel: TagViewModel = hiltViewModel(),
+    navController: NavHostController? = null
 ) {
+    val taskViewModel: TaskViewModel = hiltViewModel()
     val tagDetailsState by viewModel.getTag(tagId).collectAsState()
     val tasksState by viewModel.getTasksWithTag(tagId).collectAsState()
     
@@ -94,6 +98,20 @@ fun TagDetailsScreen(
                     }
                 },
                 actions = {
+                    IconButton(
+                        onClick = { 
+                            navController?.navigate("tasks") {
+                                // Navigate to tasks and set the filter
+                                taskViewModel.setTagFilter(tagId)
+                            }
+                        }
+                    ) {
+                        Icon(
+                            Icons.Default.CheckCircle, 
+                            contentDescription = "View All Tasks with This Tag"
+                        )
+                    }
+                    
                     if (!isEditing) {
                         IconButton(onClick = { isEditing = true }) {
                             Icon(Icons.Default.Edit, contentDescription = "Edit Content")

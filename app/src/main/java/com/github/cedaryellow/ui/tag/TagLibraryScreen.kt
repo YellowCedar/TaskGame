@@ -36,6 +36,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Search
@@ -66,14 +67,18 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.navigation.NavHostController
 import com.github.cedaryellow.data.local.database.Tag
+import com.github.cedaryellow.ui.task.TaskViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun TagLibraryScreen(
     onTagClick: (Int) -> Unit,
-    viewModel: TagViewModel = hiltViewModel()
+    viewModel: TagViewModel = hiltViewModel(),
+    navController: NavHostController? = null
 ) {
+    val taskViewModel: TaskViewModel = hiltViewModel()
     val tagUiState by viewModel.tags.collectAsState()
     var showAddDialog by remember { mutableStateOf(false) }
     var showEditDialog by remember { mutableStateOf(false) }
@@ -192,6 +197,13 @@ fun TagLibraryScreen(
                                 onEdit = {
                                     selectedTag = tag
                                     showEditDialog = true
+                                },
+                                onViewTasks = { tagId ->
+                                    // Navigate to Tasks screen with tag filter
+                                    navController?.navigate("tasks") {
+                                        // Navigate to tasks and set the filter
+                                        taskViewModel.setTagFilter(tagId)
+                                    }
                                 }
                             )
                             Spacer(modifier = Modifier.height(8.dp))
@@ -207,42 +219,57 @@ fun TagLibraryScreen(
 fun TagItem(
     tag: Tag,
     onClick: () -> Unit,
-    onEdit: () -> Unit
+    onEdit: () -> Unit,
+    onViewTasks: (Int) -> Unit,
+    modifier: Modifier = Modifier
 ) {
     Card(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
             .clickable { onClick() }
     ) {
-        Row(
+        Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween
+                .padding(16.dp)
         ) {
             Row(
-                verticalAlignment = Alignment.CenterVertically
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                Box(
-                    modifier = Modifier
-                        .size(24.dp)
-                        .clip(CircleShape)
-                        .background(Color(android.graphics.Color.parseColor(tag.color)))
-                )
-                Spacer(modifier = Modifier.size(12.dp))
-                Text(
-                    text = tag.name,
-                    fontWeight = FontWeight.Medium,
-                    style = MaterialTheme.typography.bodyLarge
-                )
-            }
-            
-            IconButton(onClick = onEdit) {
-                Icon(
-                    imageVector = Icons.Default.Edit,
-                    contentDescription = "Edit Tag"
-                )
+                Row(
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(24.dp)
+                            .clip(CircleShape)
+                            .background(Color(android.graphics.Color.parseColor(tag.color)))
+                    )
+                    Spacer(modifier = Modifier.size(12.dp))
+                    Text(
+                        text = tag.name,
+                        fontWeight = FontWeight.Medium,
+                        style = MaterialTheme.typography.bodyLarge
+                    )
+                }
+                
+                Row {
+                    IconButton(onClick = { onViewTasks(tag.tagId) }) {
+                        Icon(
+                            imageVector = Icons.Default.CheckCircle,
+                            contentDescription = "View Tasks with this Tag"
+                        )
+                    }
+                    
+                    IconButton(onClick = onEdit) {
+                        Icon(
+                            imageVector = Icons.Default.Edit,
+                            contentDescription = "Edit Tag"
+                        )
+                    }
+                }
             }
         }
     }

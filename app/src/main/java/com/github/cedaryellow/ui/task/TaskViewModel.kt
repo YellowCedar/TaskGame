@@ -55,17 +55,31 @@ class TaskViewModel @Inject constructor(
     // 是否显示所有任务，默认只显示选中日期的任务
     private val _showAllTasks = MutableStateFlow(false)
     val showAllTasks: StateFlow<Boolean> = _showAllTasks
+    
+    // 选中的标签ID，用于筛选任务，null 表示不筛选
+    private val _selectedTagId = MutableStateFlow<Int?>(null)
+    val selectedTagId: StateFlow<Int?> = _selectedTagId
+    
+    // 选中的标签对象
+    private val _selectedTag = MutableStateFlow<Tag?>(null)
+    val selectedTag: StateFlow<Tag?> = _selectedTag
 
-    // 根据选中的日期和显示模式来动态更新UI状态
+    // 根据选中的日期、显示模式和标签来动态更新UI状态
     val uiState: StateFlow<TaskUiState> = combine(
         _selectedDate,
-        _showAllTasks
-    ) { date, showAll ->
-        Pair(date, showAll)
-    }.flatMapLatest { (date, showAll) ->
-        if (showAll) {
+        _showAllTasks,
+        _selectedTagId
+    ) { date, showAll, tagId ->
+        Triple(date, showAll, tagId)
+    }.flatMapLatest { (date, showAll, tagId) ->
+        if (tagId != null) {
+            // 如果选择了标签，优先按标签筛选
+            tagRepository.getTasksWithTag(tagId)
+        } else if (showAll) {
+            // 显示所有任务
             taskRepository.tasks
         } else {
+            // 按日期筛选
             taskRepository.getTasksByDate(date)
         }
     }.map<List<Task>, TaskUiState>(::Success)
@@ -78,16 +92,41 @@ class TaskViewModel @Inject constructor(
     // 设置是否显示所有任务
     fun setShowAllTasks(showAll: Boolean) {
         _showAllTasks.value = showAll
+        // 当切换到"显示所有任务"时，清除标签筛选
+        if (showAll) {
+            clearTagFilter()
+        }
     }
     
     // 设置选中日期
     fun setSelectedDate(timestamp: Long) {
         _selectedDate.value = timestamp
+        // 当切换日期时，清除标签筛选
+        clearTagFilter()
+    }
+    
+    // 设置标签筛选
+    fun setTagFilter(tagId: Int) {
+        _selectedTagId.value = tagId
+        viewModelScope.launch {
+            try {
+                _selectedTag.value = tagRepository.getTag(tagId).first()
+            } catch (e: Exception) {
+                Log.e("TaskViewModel", "获取标签信息失败", e)
+            }
+        }
+    }
+    
+    // 清除标签筛选
+    fun clearTagFilter() {
+        _selectedTagId.value = null
+        _selectedTag.value = null
     }
     
     // 将日期设置为今天
     fun setToday() {
         _selectedDate.value = System.currentTimeMillis()
+        clearTagFilter()
     }
     
     // 将日期设置为昨天
@@ -96,6 +135,7 @@ class TaskViewModel @Inject constructor(
         calendar.timeInMillis = _selectedDate.value
         calendar.add(Calendar.DAY_OF_MONTH, -1)
         _selectedDate.value = calendar.timeInMillis
+        clearTagFilter()
     }
     
     // 将日期设置为明天
@@ -104,6 +144,7 @@ class TaskViewModel @Inject constructor(
         calendar.timeInMillis = _selectedDate.value
         calendar.add(Calendar.DAY_OF_MONTH, 1)
         _selectedDate.value = calendar.timeInMillis
+        clearTagFilter()
     }
 
     fun getTask(taskId: Int): StateFlow<TaskDetailsUiState> = taskRepository

@@ -87,7 +87,8 @@ fun MainNavigation() {
             }
             composable(Screen.Tags.route) {
                 TagLibraryScreen(
-                    onTagClick = { tagId -> navController.navigate("tag_details/$tagId") }
+                    onTagClick = { tagId -> navController.navigate("tag_details/$tagId") },
+                    navController = navController
                 )
             }
             composable("add_task") {
@@ -124,7 +125,8 @@ fun MainNavigation() {
                 TagDetailsScreen(
                     tagId = tagId,
                     onNavigateBack = { navController.popBackStack() },
-                    onTaskClick = { taskId -> navController.navigate("task_details/$taskId") }
+                    onTaskClick = { taskId -> navController.navigate("task_details/$taskId") },
+                    navController = navController
                 )
             }
         }
