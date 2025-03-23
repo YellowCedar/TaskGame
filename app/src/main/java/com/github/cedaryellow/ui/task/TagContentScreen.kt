@@ -40,6 +40,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -57,82 +58,82 @@ fun TagContentScreen(
     modifier: Modifier = Modifier,
     viewModel: TagViewModel = hiltViewModel()
 ) {
-    val tagState by viewModel.getTag(tagId).collectAsStateWithLifecycle()
-    var content by remember { mutableStateOf("") }
-    var isContentInitialized by remember { mutableStateOf(false) }
-    
-    when (val state = tagState) {
-        is TagDetailsUiState.Loading -> {
-            Box(
-                modifier = Modifier.fillMaxSize(),
-                contentAlignment = Alignment.Center
+    val tagState by viewModel.getTag(tagId).collectAsStateWithLifecycle()//todo understand why when can't be written outside the scaffold
+    var content by rememberSaveable { mutableStateOf("") }
+    var tagName by rememberSaveable { mutableStateOf("") }
+    var isContentInitialized by rememberSaveable { mutableStateOf(false) }
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = {
+                    Text(
+                        text = tagName,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                },
+                navigationIcon = {
+                    IconButton(onClick = onNavigateBack) {
+                        Icon(
+                            imageVector = Icons.Default.ArrowBack,
+                            contentDescription = "Back"
+                        )
+                    }
+                },
+//                colors = TopAppBarDefaults.topAppBarColors(
+//                    containerColor = tagColor.copy(alpha = 0.2f),
+//                    titleContentColor = tagColor
+//                )
+            )
+        },
+        floatingActionButton = {
+            FloatingActionButton(
+                onClick = {
+                    viewModel.updateTagContent(tagId, content)
+                    onNavigateBack()
+                }
             ) {
-                CircularProgressIndicator()
+                Icon(
+                    imageVector = Icons.Default.Save,
+                    contentDescription = "Save"
+                )
             }
         }
-        is TagDetailsUiState.Error -> {
-            Box(
-                modifier = Modifier.fillMaxSize(),
-                contentAlignment = Alignment.Center
-            ) {
-                Text("Error loading tag: ${state.throwable.message}")
+    ) { innerPadding ->
+        when (tagState) {
+            is TagDetailsUiState.Loading -> {
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    CircularProgressIndicator()
+                }
             }
-        }
-        is TagDetailsUiState.Success -> {
-            val tag = state.data
-            
-            // Initialize content with tag's content when data is loaded
+            is TagDetailsUiState.Error -> {
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text("Error loading tag: ${(tagState as TagDetailsUiState.Error).throwable.message}")
+                }
+            }
+            is TagDetailsUiState.Success -> {
+                val tag = (tagState as TagDetailsUiState.Success).data
+
+                // Initialize content with tag's content when data is loaded
             LaunchedEffect(tag) {
                 if (!isContentInitialized) {
                     content = tag.content
+                    tagName= tag.name
                     isContentInitialized = true
                 }
             }
-            
-            val tagColor = try {
-                Color(android.graphics.Color.parseColor(tag.color))
-            } catch (e: Exception) {
-                MaterialTheme.colorScheme.primary
-            }
-            
-            Scaffold(
-                topBar = {
-                    TopAppBar(
-                        title = { 
-                            Text(
-                                text = tag.name,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
-                            ) 
-                        },
-                        navigationIcon = {
-                            IconButton(onClick = onNavigateBack) {
-                                Icon(
-                                    imageVector = Icons.Default.ArrowBack,
-                                    contentDescription = "Back"
-                                )
-                            }
-                        },
-                        colors = TopAppBarDefaults.topAppBarColors(
-                            containerColor = tagColor.copy(alpha = 0.2f),
-                            titleContentColor = tagColor
-                        )
-                    )
-                },
-                floatingActionButton = {
-                    FloatingActionButton(
-                        onClick = {
-                            viewModel.updateTagContent(tagId, content)
-                            onNavigateBack()
-                        }
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Save,
-                            contentDescription = "Save"
-                        )
-                    }
+
+                val tagColor = try {
+                    Color(android.graphics.Color.parseColor(tag.color))
+                } catch (e: Exception) {
+                    MaterialTheme.colorScheme.primary
                 }
-            ) { innerPadding ->
                 Column(
                     modifier = modifier
                         .fillMaxSize()
@@ -149,7 +150,10 @@ fun TagContentScreen(
                         label = { Text("Tag Content") }
                     )
                 }
+
             }
         }
+
     }
-} 
+
+}
