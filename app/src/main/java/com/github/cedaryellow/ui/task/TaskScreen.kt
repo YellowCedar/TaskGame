@@ -17,6 +17,7 @@
 package com.github.cedaryellow.ui.task
 
 import android.util.Log
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -31,11 +32,14 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.ArrowForward
 import androidx.compose.material.icons.filled.CalendarToday
+import androidx.compose.material.icons.filled.Pause
+import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material3.Card
 import androidx.compose.material3.Checkbox
@@ -58,6 +62,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -66,9 +71,15 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.github.cedaryellow.data.local.database.Task
 import com.github.cedaryellow.data.local.database.TaskState
+import com.github.cedaryellow.data.local.database.Tag
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Date
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
+import androidx.compose.foundation.layout.PaddingValues
+import com.github.cedaryellow.ui.task.TagList
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -117,7 +128,8 @@ fun TaskScreen(
                     val tasks = (uiState as TaskUiState.Success).data
                     TaskListScreen(
                         tasks = tasks,
-                        onTaskClick = onTaskClick
+                        onTaskClick = onTaskClick,
+                        viewModel = viewModel
                     )
                 }
             }
@@ -290,7 +302,8 @@ fun ErrorScreen(modifier: Modifier = Modifier) {
 fun TaskListScreen(
     tasks: List<Task>,
     onTaskClick: (Int) -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    viewModel: TaskViewModel,
 ) {
     if (tasks.isEmpty()) {
         Box(
@@ -310,62 +323,130 @@ fun TaskListScreen(
             contentPadding = androidx.compose.foundation.layout.PaddingValues(16.dp)
         ) {
             items(tasks) { task ->
-                TaskItem(
+                TaskListItem(
                     task = task,
-                    onClick = { onTaskClick(task.uid) }
+                    onClick = { onTaskClick(task.uid) },
+                    onStartClick = { viewModel.startTask(task.uid) },
+                    onPauseClick = { viewModel.pauseTask(task.uid) },
+                    viewModel = viewModel,
+                    modifier = Modifier.padding(horizontal = 4.dp, vertical = 4.dp)
                 )
             }
         }
     }
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
-fun TaskItem(
+fun TaskListItem(
     task: Task,
     onClick: () -> Unit,
+    onStartClick: () -> Unit,
+    onPauseClick: () -> Unit,
+    viewModel: TaskViewModel,
     modifier: Modifier = Modifier
 ) {
+    val tags by viewModel.getTagsForTask(task.uid).collectAsStateWithLifecycle()
+    
     Card(
         modifier = modifier
             .fillMaxWidth()
-            .clickable(onClick = onClick)
+            .clickable { onClick() }
     ) {
         Column(
             modifier = Modifier.padding(16.dp)
         ) {
-            Text(
-                text = task.name,
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
-            
-            Spacer(modifier = Modifier.height(8.dp))
-            
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                TaskStatusIndicator(task)
+                Text(
+                    text = task.name,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f)
+                )
                 
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(
-                        imageVector = Icons.Default.Timer,
-                        contentDescription = null,
-                        modifier = Modifier.size(16.dp)
-                    )
-                    Text(
-                        text = "${task.estimatedDurationMinutes} min",
-                        style = MaterialTheme.typography.bodySmall,
-                        modifier = Modifier.padding(start = 4.dp)
-                    )
+                // Task control buttons
+                when (task.state) {
+                    TaskState.NOT_STARTED -> {
+                        IconButton(onClick = onStartClick) {
+                            Icon(
+                                imageVector = Icons.Default.PlayArrow,
+                                contentDescription = "Start Task"
+                            )
+                        }
+                    }
+                    TaskState.IN_PROGRESS -> {
+                        IconButton(onClick = onPauseClick) {
+                            Icon(
+                                imageVector = Icons.Default.Pause,
+                                contentDescription = "Pause Task"
+                            )
+                        }
+                    }
+                    else -> {
+                        // No action buttons for paused or completed tasks
+                    }
+                }
+            }
+            
+            // Display task status and duration
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.padding(top = 4.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Timer,
+                    contentDescription = null,
+                    modifier = Modifier.size(16.dp)
+                )
+                Spacer(modifier = Modifier.width(4.dp))
+                Text(
+                    text = "${task.estimatedDurationMinutes} min",
+                    style = MaterialTheme.typography.bodySmall
+                )
+                
+                Spacer(modifier = Modifier.width(8.dp))
+                
+                // Status chip
+                val statusColor = when(task.state) {
+                    TaskState.NOT_STARTED -> MaterialTheme.colorScheme.outline
+                    TaskState.IN_PROGRESS -> MaterialTheme.colorScheme.primary
+                    TaskState.PAUSED -> MaterialTheme.colorScheme.tertiary
+                    TaskState.COMPLETED -> MaterialTheme.colorScheme.secondary
                 }
                 
-                Text(
-                    //text = "${task.maxPoints} pts", todo use maxPoints
-                    text = "100 base pts",
-                    style = MaterialTheme.typography.bodySmall
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(4.dp))
+                        .background(statusColor.copy(alpha = 0.2f))
+                        .padding(horizontal = 6.dp, vertical = 2.dp)
+                ) {
+                    Text(
+                        text = when(task.state) {
+                            TaskState.NOT_STARTED -> "Not Started"
+                            TaskState.IN_PROGRESS -> "In Progress"
+                            TaskState.PAUSED -> "Paused"
+                            TaskState.COMPLETED -> "Completed"
+                        },
+                        style = MaterialTheme.typography.bodySmall,
+                        color = statusColor
+                    )
+                }
+            }
+            
+            // Show tags if available
+            if (tags.isNotEmpty()) {
+                Spacer(modifier = Modifier.height(8.dp))
+                TagList(
+                    tags = tags,
+                    onTagClick = { /* Can't navigate from here, just show */ },
+                    maxDisplayedTags = 3,
+                    showAll = false
                 )
             }
         }

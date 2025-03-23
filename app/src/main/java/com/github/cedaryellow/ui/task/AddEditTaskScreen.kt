@@ -42,6 +42,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.github.cedaryellow.data.local.database.Tag
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -57,6 +59,11 @@ fun AddEditTaskScreen(
     var nameError by remember { mutableStateOf(false) }
     var pointsError by remember { mutableStateOf(false) }
     var durationError by remember { mutableStateOf(false) }
+    
+    // For tag handling
+    val allTags by viewModel.allTags.collectAsStateWithLifecycle()
+    var selectedTags by remember { mutableStateOf<List<Tag>>(emptyList()) }
+    var showCreateTagDialog by remember { mutableStateOf(false) }
     
     Scaffold(
         topBar = {
@@ -137,6 +144,22 @@ fun AddEditTaskScreen(
                 modifier = Modifier.fillMaxWidth()
             )
             
+            // Tag Selector
+            TagSelector(
+                availableTags = allTags,
+                selectedTags = selectedTags,
+                onTagSelected = { tag ->
+                    selectedTags = selectedTags + tag
+                },
+                onTagDeselected = { tag ->
+                    selectedTags = selectedTags.filter { it.tagId != tag.tagId }
+                },
+                onCreateNewTag = {
+                    showCreateTagDialog = true
+                },
+                modifier = Modifier.fillMaxWidth()
+            )
+            
             // Save Button
             Button(
                 onClick = {
@@ -158,12 +181,14 @@ fun AddEditTaskScreen(
                     
                     // Save if valid
                     if (!nameError && !pointsError && !durationError) {
-                        viewModel.addTask(
+                        // Use the viewModel's coroutine scope
+                        viewModel.saveTaskWithTags(
                             name = taskName,
                             maxPoints = maxPoints.toInt(),
-                            estimatedDurationMinutes = estimatedDuration.toInt()
+                            estimatedDurationMinutes = estimatedDuration.toInt(),
+                            selectedTags = selectedTags,
+                            onComplete = { onNavigateBack() }
                         )
-                        onNavigateBack()
                     }
                 },
                 modifier = Modifier
@@ -173,5 +198,16 @@ fun AddEditTaskScreen(
                 Text("Save")
             }
         }
+    }
+    
+    // Create Tag Dialog
+    if (showCreateTagDialog) {
+        CreateTagDialog(
+            onDismiss = { showCreateTagDialog = false },
+            onConfirm = { name, color ->
+                viewModel.addTag(name, color)
+                showCreateTagDialog = false
+            }
+        )
     }
 } 

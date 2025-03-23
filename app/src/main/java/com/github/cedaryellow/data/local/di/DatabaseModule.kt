@@ -22,6 +22,8 @@ import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 import com.github.cedaryellow.data.local.database.AppDatabase
 import com.github.cedaryellow.data.local.database.TaskDao
+import com.github.cedaryellow.data.local.database.TagDao
+import com.github.cedaryellow.data.local.database.TaskTagDao
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -32,18 +34,35 @@ import javax.inject.Singleton
 // Migration from version 1 to 2
 val MIGRATION_1_2 = object : Migration(1, 2) {
     override fun migrate(database: SupportSQLiteDatabase) {
-        // Add new columns to Task table
-//        database.execSQL("ALTER TABLE Task ADD COLUMN maxPoints INTEGER NOT NULL DEFAULT 0")
-//        database.execSQL("ALTER TABLE Task ADD COLUMN estimatedDurationMinutes INTEGER NOT NULL DEFAULT 0")
-//        database.execSQL("ALTER TABLE Task ADD COLUMN state TEXT NOT NULL DEFAULT 'NOT_STARTED'")
-//        database.execSQL("ALTER TABLE Task ADD COLUMN startTime INTEGER DEFAULT NULL")
-//        database.execSQL("ALTER TABLE Task ADD COLUMN endTime INTEGER DEFAULT NULL")
-//        database.execSQL("ALTER TABLE Task ADD COLUMN pauseTime INTEGER DEFAULT NULL")
-//        database.execSQL("ALTER TABLE Task ADD COLUMN totalElapsedTime INTEGER NOT NULL DEFAULT 0")
-//        database.execSQL("ALTER TABLE Task ADD COLUMN rating INTEGER DEFAULT NULL")
-//        database.execSQL("ALTER TABLE Task ADD COLUMN reflection TEXT NOT NULL DEFAULT ''")
-//        database.execSQL("ALTER TABLE Task ADD COLUMN earnedPoints INTEGER NOT NULL DEFAULT 0")
-//        database.execSQL("ALTER TABLE Task ADD COLUMN createdAt INTEGER NOT NULL DEFAULT 0")
+        // Create Tag table
+        database.execSQL(
+            """
+            CREATE TABLE IF NOT EXISTS `Tag` (
+                `tagId` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                `name` TEXT NOT NULL,
+                `color` TEXT NOT NULL DEFAULT '#FF6200EE',
+                `content` TEXT NOT NULL DEFAULT '',
+                `createdAt` INTEGER NOT NULL DEFAULT 0
+            )
+            """
+        )
+        
+        // Create TaskTagCrossRef table
+        database.execSQL(
+            """
+            CREATE TABLE IF NOT EXISTS `TaskTagCrossRef` (
+                `taskId` INTEGER NOT NULL,
+                `tagId` INTEGER NOT NULL,
+                PRIMARY KEY(`taskId`, `tagId`),
+                FOREIGN KEY(`taskId`) REFERENCES `Task`(`uid`) ON DELETE CASCADE,
+                FOREIGN KEY(`tagId`) REFERENCES `Tag`(`tagId`) ON DELETE CASCADE
+            )
+            """
+        )
+        
+        // Create indices for TaskTagCrossRef table
+        database.execSQL("CREATE INDEX IF NOT EXISTS `index_TaskTagCrossRef_taskId` ON `TaskTagCrossRef` (`taskId`)")
+        database.execSQL("CREATE INDEX IF NOT EXISTS `index_TaskTagCrossRef_tagId` ON `TaskTagCrossRef` (`tagId`)")
     }
 }
 
@@ -54,6 +73,16 @@ class DatabaseModule {
     fun provideTaskDao(appDatabase: AppDatabase): TaskDao {
         return appDatabase.taskDao()
     }
+    
+    @Provides
+    fun provideTagDao(appDatabase: AppDatabase): TagDao {
+        return appDatabase.tagDao()
+    }
+    
+    @Provides
+    fun provideTaskTagDao(appDatabase: AppDatabase): TaskTagDao {
+        return appDatabase.taskTagDao()
+    }
 
     @Provides
     @Singleton
@@ -63,8 +92,8 @@ class DatabaseModule {
             AppDatabase::class.java,
             "Task"
         )
-        //.addMigrations(MIGRATION_1_2)
-        .fallbackToDestructiveMigration() // Only for development
+        .addMigrations(MIGRATION_1_2)
+        //.fallbackToDestructiveMigration() // Only for development
         .build()
     }
 }

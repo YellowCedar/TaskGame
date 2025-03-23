@@ -18,6 +18,8 @@ package com.github.cedaryellow.data.di
 
 import com.github.cedaryellow.data.DefaultTaskRepository
 import com.github.cedaryellow.data.TaskRepository
+import com.github.cedaryellow.data.DefaultTagRepository
+import com.github.cedaryellow.data.TagRepository
 import dagger.Binds
 import dagger.Module
 import dagger.hilt.InstallIn
@@ -33,6 +35,7 @@ interface DataModule {
     fun bindsTaskRepository(
         taskRepository: DefaultTaskRepository
     ): TaskRepository
+
 }
 
 ///**

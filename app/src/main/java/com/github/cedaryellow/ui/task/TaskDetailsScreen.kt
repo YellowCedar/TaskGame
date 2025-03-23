@@ -70,10 +70,12 @@ import java.util.concurrent.TimeUnit
 fun TaskDetailsScreen(
     taskId: Int,
     onNavigateBack: () -> Unit,
+    onNavigateToTagContent: (Int) -> Unit,
     modifier: Modifier = Modifier,
     viewModel: TaskViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.getTask(taskId).collectAsStateWithLifecycle()
+    val taskTags by viewModel.getTagsForTask(taskId).collectAsStateWithLifecycle()
     var showCompletionDialog by remember { mutableStateOf(false) }
     var showDeleteConfirmDialog by remember { mutableStateOf(false) }
     
@@ -130,7 +132,16 @@ fun TaskDetailsScreen(
                         Text(
                             text = task.name,
                             style = MaterialTheme.typography.headlineMedium,
-                            fontWeight = FontWeight.Bold
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier.padding(vertical = 8.dp)
+                        )
+                        
+                        // Display task tags
+                        TagList(
+                            tags = taskTags,
+                            onTagClick = { tag -> onNavigateToTagContent(tag.tagId) },
+                            showAll = true,
+                            modifier = Modifier.padding(vertical = 8.dp)
                         )
                         
                         Spacer(modifier = Modifier.height(8.dp))

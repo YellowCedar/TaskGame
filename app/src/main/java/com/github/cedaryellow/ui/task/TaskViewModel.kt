@@ -16,10 +16,13 @@
 
 package com.github.cedaryellow.ui.task
 
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.github.cedaryellow.data.TaskRepository
 import com.github.cedaryellow.data.UserPointsRepository
+import com.github.cedaryellow.data.TagRepository
+import com.github.cedaryellow.data.local.database.Tag
 import com.github.cedaryellow.data.local.database.Task
 import com.github.cedaryellow.ui.task.TaskUiState.Error
 import com.github.cedaryellow.ui.task.TaskUiState.Loading
@@ -41,7 +44,8 @@ import javax.inject.Inject
 @HiltViewModel
 class TaskViewModel @Inject constructor(
     private val taskRepository: TaskRepository,
-    private val userPointsRepository: UserPointsRepository
+    private val userPointsRepository: UserPointsRepository,
+    private val tagRepository: TagRepository
 ) : ViewModel() {
 
     // 选中的日期，默认为今天
@@ -65,7 +69,10 @@ class TaskViewModel @Inject constructor(
             taskRepository.getTasksByDate(date)
         }
     }.map<List<Task>, TaskUiState>(::Success)
-     .catch { emit(Error(it)) }
+     .catch {
+         emit(Error(it))
+         Log.e("TaskViewModel", "加载任务失败", it)
+     }
      .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), Loading)
 
     // 设置是否显示所有任务
@@ -105,10 +112,8 @@ class TaskViewModel @Inject constructor(
         .catch { emit(TaskDetailsUiState.Error(it)) }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), TaskDetailsUiState.Loading)
 
-    fun addTask(name: String, maxPoints: Int, estimatedDurationMinutes: Int) {
-        viewModelScope.launch {
-            taskRepository.addTask(name, maxPoints, estimatedDurationMinutes)
-        }
+    suspend fun addTask(name: String, maxPoints: Int, estimatedDurationMinutes: Int): Long {
+        return taskRepository.addTask(name, maxPoints, estimatedDurationMinutes)
     }
     
     fun updateTask(task: Task) {
@@ -142,6 +147,64 @@ class TaskViewModel @Inject constructor(
             // Get the completed task to add its points
             val task = taskRepository.getTask(taskId).first()
             userPointsRepository.addPoints(task.earnedPoints)
+        }
+    }
+
+    // Tags for all tasks
+    val allTags: StateFlow<List<Tag>> = tagRepository.tags
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    fun getTagsForTask(taskId: Int): StateFlow<List<Tag>> = taskRepository
+        .getTagsForTask(taskId)
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    fun addTagToTask(taskId: Int, tagId: Int) {
+        viewModelScope.launch {
+            taskRepository.addTagToTask(taskId, tagId)
+        }
+    }
+    
+    fun removeTagFromTask(taskId: Int, tagId: Int) {
+        viewModelScope.launch {
+            taskRepository.removeTagFromTask(taskId, tagId)
+        }
+    }
+    
+    fun addTag(name: String, color: String) {
+        viewModelScope.launch {
+            tagRepository.addTag(name, color)
+        }
+    }
+    
+    fun clearTagsForTask(taskId: Int) {
+        viewModelScope.launch {
+            taskRepository.clearTagsForTask(taskId)
+        }
+    }
+    
+    fun searchTags(query: String, callback: (List<Tag>) -> Unit) {
+        viewModelScope.launch {
+            val results = tagRepository.searchTags(query)
+            callback(results)
+        }
+    }
+
+    fun saveTaskWithTags(
+        name: String, 
+        maxPoints: Int, 
+        estimatedDurationMinutes: Int,
+        selectedTags: List<Tag>,
+        onComplete: () -> Unit
+    ) {
+        viewModelScope.launch {
+            val taskId = addTask(name, maxPoints, estimatedDurationMinutes)
+            
+            // Add tags to the task
+            selectedTags.forEach { tag ->
+                addTagToTask(taskId.toInt(), tag.tagId)
+            }
+            
+            onComplete()
         }
     }
 }

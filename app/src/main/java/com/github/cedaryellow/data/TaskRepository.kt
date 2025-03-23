@@ -19,6 +19,9 @@ package com.github.cedaryellow.data
 import com.github.cedaryellow.data.local.database.Task
 import com.github.cedaryellow.data.local.database.TaskDao
 import com.github.cedaryellow.data.local.database.TaskState
+import com.github.cedaryellow.data.local.database.Tag
+import com.github.cedaryellow.data.local.database.TaskTagDao
+import com.github.cedaryellow.data.local.database.TaskTagCrossRef
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import javax.inject.Inject
@@ -43,10 +46,20 @@ interface TaskRepository {
     suspend fun pauseTask(taskId: Int)
     
     suspend fun completeTask(taskId: Int, rating: Int, reflection: String)
+    
+    // Tag-related methods
+    fun getTagsForTask(taskId: Int): Flow<List<Tag>>
+    
+    suspend fun addTagToTask(taskId: Int, tagId: Int)
+    
+    suspend fun removeTagFromTask(taskId: Int, tagId: Int)
+    
+    suspend fun clearTagsForTask(taskId: Int)
 }
 
 class DefaultTaskRepository @Inject constructor(
-    private val taskDao: TaskDao
+    private val taskDao: TaskDao,
+    private val taskTagDao: TaskTagDao
 ) : TaskRepository {
 
     override val tasks: Flow<List<Task>> = taskDao.getTasks()
@@ -170,5 +183,22 @@ class DefaultTaskRepository @Inject constructor(
 
         // 3. 计算并四舍五入为整数
         return (basePoints * sCoeff * tCoeff).roundToInt()
+    }
+
+    // Tag-related implementations
+    override fun getTagsForTask(taskId: Int): Flow<List<Tag>> {
+        return taskTagDao.getTagsForTask(taskId)
+    }
+    
+    override suspend fun addTagToTask(taskId: Int, tagId: Int) {
+        taskTagDao.insert(TaskTagCrossRef(taskId, tagId))
+    }
+    
+    override suspend fun removeTagFromTask(taskId: Int, tagId: Int) {
+        taskTagDao.delete(TaskTagCrossRef(taskId, tagId))
+    }
+    
+    override suspend fun clearTagsForTask(taskId: Int) {
+        taskTagDao.deleteAllTagsForTask(taskId)
     }
 }

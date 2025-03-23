@@ -23,6 +23,10 @@ import androidx.room.OnConflictStrategy
 import androidx.room.PrimaryKey
 import androidx.room.Query
 import androidx.room.Update
+import androidx.room.ForeignKey
+import androidx.room.Index
+import androidx.room.Delete
+import androidx.room.Transaction
 import kotlinx.coroutines.flow.Flow
 
 @Entity
@@ -41,9 +45,43 @@ data class Task(
     val reflection: String = "",
     val earnedPoints: Int = 0,
     val createdAt: Long = System.currentTimeMillis()
-) {
+)
 
-}
+@Entity
+data class Tag(
+    @PrimaryKey(autoGenerate = true)
+    val tagId: Int = 0,
+    val name: String,
+    val color: String = "#FF6200EE", // Default color
+    val content: String = "", // Content associated with this tag
+    val createdAt: Long = System.currentTimeMillis()
+)
+
+@Entity(
+    primaryKeys = ["taskId", "tagId"],
+    foreignKeys = [
+        ForeignKey(
+            entity = Task::class,
+            parentColumns = ["uid"],
+            childColumns = ["taskId"],
+            onDelete = ForeignKey.CASCADE
+        ),
+        ForeignKey(
+            entity = Tag::class,
+            parentColumns = ["tagId"],
+            childColumns = ["tagId"],
+            onDelete = ForeignKey.CASCADE
+        )
+    ],
+    indices = [
+        Index("taskId"),
+        Index("tagId")
+    ]
+)
+data class TaskTagCrossRef(
+    val taskId: Int,
+    val tagId: Int
+)
 
 enum class TaskState {
     NOT_STARTED,
@@ -71,4 +109,45 @@ interface TaskDao {
     
     @Query("DELETE FROM task WHERE uid = :taskId")
     suspend fun deleteTask(taskId: Int)
+}
+
+@Dao
+interface TagDao {
+    @Query("SELECT * FROM tag ORDER BY name ASC")
+    fun getAllTags(): Flow<List<Tag>>
+
+    @Query("SELECT * FROM tag WHERE tagId = :tagId")
+    fun getTagById(tagId: Int): Flow<Tag>
+
+    @Insert
+    suspend fun insertTag(tag: Tag): Long
+
+    @Update
+    suspend fun updateTag(tag: Tag)
+
+    @Delete
+    suspend fun deleteTag(tag: Tag)
+
+    @Query("SELECT * FROM tag WHERE name LIKE :query ORDER BY name ASC")
+    suspend fun searchTags(query: String): List<Tag>
+}
+
+@Dao
+interface TaskTagDao {
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insert(crossRef: TaskTagCrossRef)
+
+    @Delete
+    suspend fun delete(crossRef: TaskTagCrossRef)
+    
+    @Query("DELETE FROM tasktagcrossref WHERE taskId = :taskId")
+    suspend fun deleteAllTagsForTask(taskId: Int)
+
+    @Transaction
+    @Query("SELECT * FROM tag INNER JOIN tasktagcrossref ON tag.tagId = tasktagcrossref.tagId WHERE tasktagcrossref.taskId = :taskId")
+    fun getTagsForTask(taskId: Int): Flow<List<Tag>>
+
+    @Transaction
+    @Query("SELECT * FROM task INNER JOIN tasktagcrossref ON task.uid = tasktagcrossref.taskId WHERE tasktagcrossref.tagId = :tagId")
+    fun getTasksWithTag(tagId: Int): Flow<List<Task>>
 }

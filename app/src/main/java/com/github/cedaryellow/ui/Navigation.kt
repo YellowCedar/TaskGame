@@ -41,6 +41,7 @@ import com.github.cedaryellow.ui.store.StoreScreen
 import com.github.cedaryellow.ui.task.AddEditTaskScreen
 import com.github.cedaryellow.ui.task.TaskDetailsScreen
 import com.github.cedaryellow.ui.task.TaskScreen
+import com.github.cedaryellow.ui.task.TagContentScreen
 
 sealed class Screen(val route: String, val icon: @Composable () -> Unit, val label: @Composable () -> Unit) {
     object Tasks : Screen(
@@ -88,6 +89,17 @@ fun MainNavigation() {
                 val taskId = backStackEntry.arguments?.getInt("taskId") ?: return@composable
                 TaskDetailsScreen(
                     taskId = taskId,
+                    onNavigateBack = { navController.popBackStack() },
+                    onNavigateToTagContent = { tagId -> navController.navigate("tag_content/$tagId") }
+                )
+            }
+            composable(
+                route = "tag_content/{tagId}",
+                arguments = listOf(navArgument("tagId") { type = NavType.IntType })
+            ) { backStackEntry ->
+                val tagId = backStackEntry.arguments?.getInt("tagId") ?: return@composable
+                TagContentScreen(
+                    tagId = tagId,
                     onNavigateBack = { navController.popBackStack() }
                 )
             }
