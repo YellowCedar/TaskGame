@@ -21,6 +21,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Store
 import androidx.compose.material.icons.filled.Tag
+import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material3.Icon
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
@@ -45,22 +46,29 @@ import com.github.cedaryellow.ui.task.AddEditTaskScreen
 import com.github.cedaryellow.ui.task.TaskDetailsScreen
 import com.github.cedaryellow.ui.task.TaskScreen
 import com.github.cedaryellow.ui.task.TagContentScreen
+import com.github.cedaryellow.ui.fragmenttime.FragmentTimeScreen
+import com.github.cedaryellow.ui.fragmenttime.FragmentTimeDetailsScreen
 
 sealed class Screen(val route: String, val icon: @Composable () -> Unit, val label: @Composable () -> Unit) {
     object Tasks : Screen(
         route = "tasks",
         icon = { Icon(Icons.Filled.CheckCircle, contentDescription = null) },
-        label = { Text("Tasks") }
+        label = { Text("任务") }
+    )
+    object FragmentTimes : Screen(
+        route = "fragment_times",
+        icon = { Icon(Icons.Filled.Timer, contentDescription = null) },
+        label = { Text("碎片时间") }
     )
     object Store : Screen(
         route = "store",
         icon = { Icon(Icons.Filled.Store, contentDescription = null) },
-        label = { Text("Store") }
+        label = { Text("积分商城") }
     )
     object Tags : Screen(
         route = "tags",
         icon = { Icon(Icons.Filled.Tag, contentDescription = null) },
-        label = { Text("Tags") }
+        label = { Text("标签") }
     )
 }
 
@@ -81,6 +89,11 @@ fun MainNavigation() {
                     onAddTask = { navController.navigate("add_task") },
                     onTaskClick = { taskId -> navController.navigate("task_details/$taskId") }
                 ) 
+            }
+            composable(Screen.FragmentTimes.route) {
+                FragmentTimeScreen(
+                    onFragmentTimeClick = { fragmentTimeId -> navController.navigate("fragment_time_details/$fragmentTimeId") }
+                )
             }
             composable(Screen.Store.route) { 
                 StoreScreen() 
@@ -105,6 +118,16 @@ fun MainNavigation() {
                     taskId = taskId,
                     onNavigateBack = { navController.popBackStack() },
                     onNavigateToTagContent = { tagId -> navController.navigate("tag_content/$tagId") }
+                )
+            }
+            composable(
+                route = "fragment_time_details/{fragmentTimeId}",
+                arguments = listOf(navArgument("fragmentTimeId") { type = NavType.IntType })
+            ) { backStackEntry ->
+                val fragmentTimeId = backStackEntry.arguments?.getInt("fragmentTimeId") ?: return@composable
+                FragmentTimeDetailsScreen(
+                    fragmentTimeId = fragmentTimeId,
+                    onNavigateBack = { navController.popBackStack() }
                 )
             }
             composable(
@@ -135,7 +158,7 @@ fun MainNavigation() {
 
 @Composable
 fun BottomNavBar(navController: NavHostController) {
-    val items = listOf(Screen.Tasks, Screen.Tags, Screen.Store)
+    val items = listOf(Screen.Tasks, Screen.FragmentTimes, Screen.Store, Screen.Tags)
     NavigationBar {
         val navBackStackEntry by navController.currentBackStackEntryAsState()
         val currentDestination = navBackStackEntry?.destination

@@ -24,6 +24,7 @@ import com.github.cedaryellow.data.local.database.AppDatabase
 import com.github.cedaryellow.data.local.database.TaskDao
 import com.github.cedaryellow.data.local.database.TagDao
 import com.github.cedaryellow.data.local.database.TaskTagDao
+import com.github.cedaryellow.data.local.database.FragmentTimeDao
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -66,6 +67,30 @@ val MIGRATION_1_2 = object : Migration(1, 2) {
     }
 }
 
+// Migration from version 2 to 3
+val MIGRATION_2_3 = object : Migration(2, 3) {
+    override fun migrate(database: SupportSQLiteDatabase) {
+        // Create the FragmentTime table
+        database.execSQL(
+            """
+            CREATE TABLE IF NOT EXISTS `FragmentTime` (
+              `uid` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+              `name` TEXT NOT NULL,
+              `state` TEXT NOT NULL,
+              `startTime` INTEGER,
+              `endTime` INTEGER,
+              `pauseTime` INTEGER,
+              `totalElapsedTime` INTEGER NOT NULL,
+              `rating` INTEGER,
+              `reflection` TEXT NOT NULL,
+              `earnedPoints` INTEGER NOT NULL,
+              `createdAt` INTEGER NOT NULL
+            )
+            """.trimIndent()
+        )
+    }
+}
+
 @Module
 @InstallIn(SingletonComponent::class)
 class DatabaseModule {
@@ -83,6 +108,11 @@ class DatabaseModule {
     fun provideTaskTagDao(appDatabase: AppDatabase): TaskTagDao {
         return appDatabase.taskTagDao()
     }
+    
+    @Provides
+    fun provideFragmentTimeDao(appDatabase: AppDatabase): FragmentTimeDao {
+        return appDatabase.fragmentTimeDao()
+    }
 
     @Provides
     @Singleton
@@ -92,7 +122,7 @@ class DatabaseModule {
             AppDatabase::class.java,
             "Task"
         )
-        .addMigrations(MIGRATION_1_2)
+        .addMigrations(MIGRATION_1_2, MIGRATION_2_3)
         //.fallbackToDestructiveMigration() // Only for development
         .build()
     }
